@@ -132,58 +132,48 @@ async function addEmployee() {
             choices: managerChoices
         }
 
-    ]).then(function (answers) {
+    ]).then(async function (answers) {
 
-        setRole(answers);
+        var roleID = await getRoleID(answers.role);
+        var managerID = await getManagerID(answers.manager);
+        // console.log("roleID", roleID);
+        // console.log("managerID", managerID);
 
-        // // console.log(roleID)
-        // var query = "INSERT INTO employees SET ?";
-        // connection.query(query, {
-        //     first_name: answers.firstName,
-        //     last_name: answers.lastName,
-        //     role_id: roleID, // get id from role
-        //     manager_id: answers.manager // get id from manager
-        // }, function(err) {
-        //     if (err) throw err;
-        // });
+        var query = "INSERT INTO employees SET ?";
+        connection.query(query, {
+            first_name: answers.firstName,
+            last_name: answers.lastName,
+            role_id: roleID, 
+            manager_id: managerID
+        }, function (err) {
+            if (err) throw err;
+        });
 
         viewTable("employees");
     })
 }
 
-async function setRole(answers) {
-    var queryRole = `SELECT role_id FROM roles WHERE title = "${answers.role}"`;
+async function getRoleID(role) {
+    var queryRole = `SELECT role_id FROM roles WHERE title = "${role}"`;
     var res = await connection.query(queryRole)
         .catch(function (err) {
             throw err;
         });
 
-    let roleID = res[0].role_id;
-
-    // Select manager_id from employees where employee_id = manager_id
-    var managerID = await getManager(answers.manager);
-
-    // console.log(roleID)
-    var query = "INSERT INTO employees SET ?";
-    connection.query(query, {
-        first_name: answers.firstName,
-        last_name: answers.lastName,
-        role_id: roleID, // get id from role
-        manager_id: managerID // get id from manager
-    }, function (err) {
-        if (err) throw err;
-    });
+    return res[0].role_id;
 }
 
-// Get Manager from id
-async function getManager(name) {
+async function getManagerID(name) {
+    if (name === "Null") {
+        return null;
+    }
     let nameSplit = name.split(" ");
     let queryManager = `SELECT employee_id FROM employees WHERE first_name = '${nameSplit[0]}' AND last_name = '${nameSplit[1]}'`;
     var res = await connection.query(queryManager)
         .catch(function (err) {
             throw err;
         });
-    // console.log(result);
+    
     return res[0].employee_id;
 }
 
@@ -387,6 +377,7 @@ async function populateManagers() {
         options.push(res[i].first_name + " " + res[i].last_name);
         // console.log(res[i].title)
     }
+    options.push("Null");
     console.log(options);
     // update and delete
     return options
