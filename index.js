@@ -19,7 +19,9 @@ connection.connect(function (err) {
 
 connection.query = util.promisify(connection.query);
 
-// ---------- START ------------
+// ************************
+// ********* START ********
+// ************************
 
 function start() {
     inquirer.prompt([
@@ -27,7 +29,7 @@ function start() {
             type: "list",
             name: "options",
             message: "What would you like to review?",
-            choices: ["Employees", "Department", "Roles"]
+            choices: ["Employees", "Departments", "Roles"]
         }
 
     ]).then(function (answers) {
@@ -56,17 +58,21 @@ function viewTable(type) {
     })
 }
 
+// ------- VIEW JOINED TABLE --------
+
 function viewJoinedChart() {
-    let queryChart = "SELECT e.employee_id, e.first_name, r.title, m.first_name AS MangerName FROM ((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN employees m ON e.manger_id = m.employee_id)";
+    let queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, m.first_name AS ManagerName FROM ((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN employees m ON e.manager_id = m.employee_id)";
     connection.query(queryChart, function (err, res) {
         if (err) throw err;
         const table = cTable.getTable(res)
         console.log(table);
-        start(); 
+        start();
     })
 }
 
-// ---------- CHANGE EMPLOYEE ------------
+// ************************
+// ******* EMPLOYEE *******
+// ************************
 
 function changeEmployee() {
     inquirer.prompt([
@@ -74,16 +80,17 @@ function changeEmployee() {
             type: "list",
             name: "options",
             message: "What would you like to do?",
-            choices: ["View All Employees", "View All Employees By Department", "View All Employees By Manager", "Add Employee", "Remove Employee", "Update Employee Role", "Update Employee Manager"]
+            choices: ["View All Employees", "Add Employee", "Remove Employee", "Update Employee Role", "Update Employee Manager"]
         }
 
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Employees":
-                viewTable("employees");
+                // viewTable("employees");
+                viewJoinedChart();
                 break;
-            case "View All Employees By Department":
-            case "View All Employees By Manager":
+            // case "View All Employees By Department":
+            // case "View All Employees By Manager":
             case "Add Employee":
                 addEmployee();
                 break;
@@ -164,8 +171,6 @@ async function queryRole(answers) {
     }, function (err) {
         if (err) throw err;
     });
-
-
 }
 
 // Get Manager from id
@@ -185,9 +190,9 @@ async function populateEmployee(crud) {
 
     var queryString = "SELECT first_name, last_name FROM employees"
     var res = await connection.query(queryString)
-    .catch(function(err) {
-        if (err) throw err;
-    })
+        .catch(function (err) {
+            if (err) throw err;
+        })
     console.log(res);
     for (var i = 0; i < res.length; i++) {
         employees.push(res[i].first_name + " " + res[i].last_name);
@@ -220,7 +225,71 @@ function remove(list) {
     })
 }
 
-// ---------- CHANGE DEPARTMENT ------------
+
+// ************************
+// ********* ROLE *********
+// ************************
+
+function changeRole() {
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "options",
+            message: "What would you like to do?",
+            choices: ["View All Roles", "Add Roles", "Remove Roles", "Update Roles"]
+        }
+
+    ]).then(function (answer) {
+        switch (answer.options) {
+            case "View All Roles":
+                viewTable("roles");
+                break;
+            case "Add Roles":
+                addRole();
+                break;
+            case "Remove Roles":
+                break;
+            case "Update Roles":
+                break;
+
+        }
+    })
+}
+
+async function addRole() {
+    let departmentChoices = await populate("name", "departments");
+    inquirer.prompt([
+        {
+            name: "name",
+            message: "What is the role name?"
+        },
+        {
+            name: "salary",
+            message: "What is the yearly salary?"
+        },
+        {
+            type: "list",
+            name: "department",
+            message: "Which department is this role in?",
+            choices: departmentChoices
+        }
+    ]).then(function (answers) {
+
+        // console.log(roleID)
+        var query = "INSERT INTO departments SET ?";
+        connection.query(query, {
+            name: answers.name,
+        }).catch(function (err) {
+            if (err) throw err;
+        });
+        // console.log(res);
+        viewTable("departments");
+    })
+}
+
+// ************************
+// ****** DEPARTMENT ******
+// ************************
 
 function changeDepartment() {
     inquirer.prompt([
@@ -237,6 +306,7 @@ function changeDepartment() {
                 viewTable("departments");
                 break;
             case "Add Department":
+                addDepartment();
                 break;
             case "Remove Department":
                 break;
@@ -247,30 +317,24 @@ function changeDepartment() {
     })
 }
 
-// ---------- CHANGE ROLE ------------
 
-function changeRole() {
+function addDepartment() {
     inquirer.prompt([
         {
-            type: "list",
-            name: "options",
-            message: "What would you like to do?",
-            choices: ["View All Roles", "Add Roles", "Remove Roles", "Update Roles"]
+            name: "name",
+            message: "What is the department's name?"
         }
+    ]).then(function (answers) {
 
-    ]).then(function (answer) {
-        switch (answer.options) {
-            case "View All Roles":
-                viewTable("departments");
-                break;
-            case "Add Roles":
-                break;
-            case "Remove Roles":
-                break;
-            case "Update Roles":
-                break;
-
-        }
+        // console.log(roleID)
+        var query = "INSERT INTO departments SET ?";
+        connection.query(query, {
+            name: answers.name,
+        }).catch(function (err) {
+            if (err) throw err;
+        });
+        // console.log(res);
+        viewTable("departments");
     })
 }
 
