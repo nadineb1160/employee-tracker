@@ -56,6 +56,16 @@ function viewAll(type) {
     })
 }
 
+function viewJoinedChart() {
+    let queryChart = "SELECT e.employee_id, e.first_name, r.title, m.first_name AS MangerName FROM ((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN employees m ON e.manger_id = m.employee_id)";
+    connection.query(queryChart, function (err, res) {
+        if (err) throw err;
+        const table = cTable.getTable(res)
+        console.log(table);
+        start(); 
+    })
+}
+
 // ---------- CHANGE EMPLOYEE ------------
 
 function changeEmployee() {
@@ -78,6 +88,8 @@ function changeEmployee() {
                 addEmployee();
                 break;
             case "Remove Employee":
+                // populateEmployee(remove);
+                break;
             case "Update Employee Role":
             case "Update Employee Manager":
 
@@ -133,9 +145,9 @@ async function addEmployee() {
 async function queryRole(answers) {
     var queryRole = `SELECT role_id FROM roles WHERE title = "${answers.role}"`;
     var res = await connection.query(queryRole)
-    .catch(function(err) {
-        throw err;
-    });
+        .catch(function (err) {
+            throw err;
+        });
 
     let roleID = res[0].role_id;
 
@@ -160,12 +172,52 @@ async function queryRole(answers) {
 async function getManager(name) {
     let nameSplit = name.split(" ");
     let queryManager = `SELECT employee_id FROM employees WHERE first_name = '${nameSplit[0]}' AND last_name = '${nameSplit[1]}'`;
-    var result = await connection.query(queryManager)
-    .catch(function (err) {
-        throw err;
-    });
+    var res = await connection.query(queryManager)
+        .catch(function (err) {
+            throw err;
+        });
     // console.log(result);
-    return result[0].employee_id;
+    return res[0].employee_id;
+}
+
+async function populateEmployee(crud) {
+    var employees = [];
+
+    var queryString = "SELECT first_name, last_name FROM employees"
+    var res = await connection.query(queryString)
+    .catch(function(err) {
+        if (err) throw err;
+    })
+    console.log(res);
+    for (var i = 0; i < res.length; i++) {
+        employees.push(res[i].first_name + " " + res[i].last_name);
+    }
+    console.log(employees);
+    // get employee_id
+    // getEmployeeId()
+    crud(employee_id);
+
+}
+
+
+function remove(list) {
+    inquirer.prompt([{
+        name: "delete",
+        type: "list",
+        choices: list,
+        message: "Who would you like to remove from the team?"
+    }]).then(function (answer) {
+        var queryString = "DELETE FROM employee WHERE ?"
+        connection.query(queryString, {
+            employee_id: answer.delete //display names, convert to id
+
+        }, function (err) {
+            if (err) throw err;
+        })
+        //Let's have a gander at our updated table (pulling straight from our database!!!!)
+        // viewJoinedChart();
+        viewAll();
+    })
 }
 
 // ---------- CHANGE DEPARTMENT ------------
@@ -233,17 +285,6 @@ async function populate(col, table) {
         // console.log(res[i].title)
     }
 
-    // var res = connection.query(query, function (err, res) {
-    //     if (err) throw err;
-
-    //     // console.log(res);
-    //     for (let i = 0; i < res.length; i++) {
-    //         options.push(res[i].title);
-    //         // console.log(res[i].title)
-    //     }
-    //     // console.log(options);
-    // })
-    // update and delete
     return options;
 
 }
