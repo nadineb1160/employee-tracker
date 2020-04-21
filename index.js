@@ -45,9 +45,9 @@ function start() {
     });
 }
 
-// ---------- VIEW ALL ------------
+// ---------- VIEW TABLE ------------
 
-function viewAll(type) {
+function viewTable(type) {
     connection.query(`SELECT * FROM ${type}`, function (err, res) {
         if (err) throw err;
         const table = cTable.getTable(res)
@@ -80,7 +80,7 @@ function changeEmployee() {
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Employees":
-                viewAll("employees");
+                viewTable("employees");
                 break;
             case "View All Employees By Department":
             case "View All Employees By Manager":
@@ -138,7 +138,7 @@ async function addEmployee() {
         //     if (err) throw err;
         // });
 
-        viewAll("employees");
+        viewTable("employees");
     })
 }
 
@@ -216,7 +216,7 @@ function remove(list) {
         })
         //Let's have a gander at our updated table (pulling straight from our database!!!!)
         // viewJoinedChart();
-        viewAll();
+        viewTable();
     })
 }
 
@@ -234,7 +234,7 @@ function changeDepartment() {
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Departments":
-                viewAllDepartments("departments");
+                viewTable("departments");
                 break;
             case "Add Department":
                 break;
@@ -261,7 +261,7 @@ function changeRole() {
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Roles":
-                viewAll("departments");
+                viewTable("departments");
                 break;
             case "Add Roles":
                 break;
