@@ -29,7 +29,7 @@ function start() {
             type: "list",
             name: "options",
             message: "What would you like to review?",
-            choices: ["Employees", "Departments", "Roles"]
+            choices: ["Employees", "Roles", "Departments"]
         }
 
     ]).then(function (answers) {
@@ -37,11 +37,11 @@ function start() {
             case "Employees":
                 changeEmployee();
                 break;
-            case "Departments":
-                changeDepartment();
-                break;
             case "Roles":
                 changeRole();
+                break;
+            case "Departments":
+                changeDepartment();
                 break;
         }
     });
@@ -98,7 +98,9 @@ function changeEmployee() {
                 // populateEmployee(remove);
                 break;
             case "Update Employee Role":
+            // populateEmployee(updateRole);
             case "Update Employee Manager":
+            // populateEmployee(updateManger);
 
         }
     })
@@ -132,7 +134,7 @@ async function addEmployee() {
 
     ]).then(function (answers) {
 
-        queryRole(answers);
+        setRole(answers);
 
         // // console.log(roleID)
         // var query = "INSERT INTO employees SET ?";
@@ -149,7 +151,7 @@ async function addEmployee() {
     })
 }
 
-async function queryRole(answers) {
+async function setRole(answers) {
     var queryRole = `SELECT role_id FROM roles WHERE title = "${answers.role}"`;
     var res = await connection.query(queryRole)
         .catch(function (err) {
@@ -273,18 +275,32 @@ async function addRole() {
             message: "Which department is this role in?",
             choices: departmentChoices
         }
-    ]).then(function (answers) {
+    ]).then(async function (answers) {
+        let depID = await getDepartmentID(answers);
 
-        // console.log(roleID)
-        var query = "INSERT INTO departments SET ?";
-        connection.query(query, {
-            name: answers.name,
+        console.log(depID)
+        var query = "INSERT INTO roles SET ?";
+        await connection.query(query, {
+            title: answers.name,
+            salary: answers.salary,
+            department_id: depID
         }).catch(function (err) {
             if (err) throw err;
         });
         // console.log(res);
-        viewTable("departments");
+        viewTable("roles");
     })
+}
+
+async function getDepartmentID(answers) {
+    var queryDepartment = `SELECT department_id FROM departments WHERE name = "${answers.department}"`;
+    console.log(queryDepartment);
+    var res = await connection.query(queryDepartment)
+        .catch(function (err) {
+            throw err;
+        });
+    console.log(res);
+    return res[0].department_id;
 }
 
 // ************************
@@ -317,18 +333,17 @@ function changeDepartment() {
     })
 }
 
-
 function addDepartment() {
     inquirer.prompt([
         {
             name: "name",
             message: "What is the department's name?"
         }
-    ]).then(function (answers) {
+    ]).then(async function (answers) {
 
         // console.log(roleID)
         var query = "INSERT INTO departments SET ?";
-        connection.query(query, {
+        await connection.query(query, {
             name: answers.name,
         }).catch(function (err) {
             if (err) throw err;
@@ -342,15 +357,20 @@ async function populate(col, table) {
     options = [];
 
     var query = `SELECT ${col} FROM ${table}`;
-    var res = await connection.query(query);
-    // console.log(res);
+    var res = await connection.query(query)
+        .catch(function (err) {
+            if (err) throw err;
+        });
+
     for (let i = 0; i < res.length; i++) {
-        options.push(res[i].title);
-        // console.log(res[i].title)
+        if (col === "name") {
+            options.push(res[i].name);
+        }
+        else if (col === "title") {
+            options.push(res[i].title);
+        }
     }
-
     return options;
-
 }
 
 async function populateManagers() {
