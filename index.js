@@ -25,6 +25,9 @@ connection.query = util.promisify(connection.query);
 // ************************
 
 function start() {
+    console.log("\n=============================")
+    console.log("------ EMPLOYEE TRACKER -----");
+    console.log("=============================\n")
     inquirer.prompt([
         {
             type: "list",
@@ -70,7 +73,8 @@ function viewTable(type) {
 // ------- VIEW JOINED TABLE --------
 
 function viewJoinedChart() {
-    var queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, d.name AS departmentName, concat(m.first_name, ' ', m.last_name) AS ManagerName FROM (((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN departments d ON r.department_id = d.department_id) LEFT JOIN employees m ON e.manager_id = m.employee_id)";
+    var queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, d.name AS departmentName, concat(m.first_name, ' ', m.last_name) AS ManagerName "
+    queryChart += "FROM (((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN departments d ON r.department_id = d.department_id) LEFT JOIN employees m ON e.manager_id = m.employee_id)";
     connection.query(queryChart, function (err, res) {
         if (err) throw err;
         var table = new Table({
@@ -103,7 +107,7 @@ function changeEmployee() {
             type: "list",
             name: "options",
             message: "What would you like to do?",
-            choices: ["View All Employees", "Add Employee", "Remove Employee", "Update Employee Role", "Update Employee Manager", "Display Options"]
+            choices: ["View All Employees", "View All Employees By Role", "View All Employees By Manager", "Add Employee", "Remove Employee", "Update Employee Role", "Update Employee Manager", "Display Options"]
         }
 
     ]).then(function (answer) {
@@ -111,8 +115,12 @@ function changeEmployee() {
             case "View All Employees":
                 viewTable("employees");
                 break;
-            // case "View All Employees By Department":
-            // case "View All Employees By Manager":
+            case "View All Employees By Role":
+                viewEmployeesByRole();
+                break;
+            case "View All Employees By Manager":
+                viewEmployeesByManager();
+                break;
             case "Add Employee":
                 addEmployee();
                 break;
@@ -121,16 +129,19 @@ function changeEmployee() {
                 break;
             case "Update Employee Role":
                 populateEmployee(updateEmployeeRole);
+                break;
             case "Update Employee Manager":
                 populateEmployee(updateEmployeeManager);
+                break;
             case "Display Options":
             default:
                 start();
                 break;
         }
-    })
+    });
 }
 
+// ------- ADD  --------
 
 async function addEmployee() {
     let roleChoices = await populate("title", "roles");
@@ -178,6 +189,8 @@ async function addEmployee() {
     })
 }
 
+// ------- REMOVE  --------
+
 async function remove(list) {
     inquirer.prompt([{
         name: "delete",
@@ -199,7 +212,8 @@ async function remove(list) {
     })
 }
 
-// updateType: manager or role
+// ------- UPDATE  ROLE --------
+
 async function updateEmployeeRole(list) {
     let roleChoices = await populate("title", "roles");
     inquirer.prompt([
@@ -227,6 +241,7 @@ async function updateEmployeeRole(list) {
     });
 }
 
+// ------- UPDATE MANAGER  --------
 
 async function updateEmployeeManager(list) {
     let managerChoices = await populateManagers();
@@ -252,6 +267,34 @@ async function updateEmployeeManager(list) {
                 if (err) throw err;
             });
         viewTable("employees");
+    });
+}
+
+// ------- VIEW EMPLOYEES BY MANAGER --------
+
+async function viewEmployeesByManager() {
+    let managerChoices = await populateManagers();
+    
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "manager",
+            message: "Search Employees By Manager:",
+            choices: managerChoices
+        }
+    ]).then(async function (answer) {
+        let employeeID = await getEmployeeID(answer.manager);
+        console.log(employeeID);
+        var query = "SELECT first_name, last_name FROM employees LEFT JOIN WHERE employee_id = ?"
+        console.log(query);
+        var res = await connection.query(query, [employeeID])
+            .catch(function (err) {
+                if (err) throw err;
+            });
+            
+        const table = cTable.getTable(res);
+        console.table(table);
+        start();
     });
 }
 
@@ -281,7 +324,6 @@ function changeRole() {
                 addRole();
                 break;
             case "Remove Roles":
-                // removeRole();
                 populateRole(removeRole);
                 break;
             case "Update Roles":
@@ -296,12 +338,14 @@ function changeRole() {
     });
 }
 
+// ------- ADD --------
+
 async function addRole() {
     let departmentChoices = await populate("name", "departments");
     inquirer.prompt([
         {
             name: "name",
-            message: "What is the role name?"
+            message: "What is the role title?"
         },
         {
             name: "salary",
@@ -329,6 +373,8 @@ async function addRole() {
     });
 }
 
+// ------- REMOVE --------
+
 async function removeRole(roleChoices) {
     inquirer.prompt([{
         name: "delete",
@@ -346,6 +392,7 @@ async function removeRole(roleChoices) {
 
 }
 
+// ------- UPDATE ROLE --------
 
 async function updateRole(roleChoices) {
     let departmentChoices = await populate("name", "departments");
@@ -375,6 +422,34 @@ async function updateRole(roleChoices) {
                 if (err) throw err;
             });
         viewTable("roles");
+    });
+}
+
+// ------- VIEW EMPLOYEES BY ROLE --------
+
+async function viewEmployeesByRole() {
+
+    let roleChoices = await populate("title", "roles");
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "role",
+            message: "Search Employees By:",
+            choices: roleChoices
+        }
+    ]).then(async function (answer) {
+        let roleID = await getRoleID(answer.role);
+        console.log(roleID);
+        var query = "SELECT first_name, last_name FROM employees WHERE role_id = ?"
+        console.log(query);
+        var res = await connection.query(query, [roleID])
+            .catch(function (err) {
+                if (err) throw err;
+            });
+            
+        const table = cTable.getTable(res);
+        console.table(table);
+        start();
     });
 }
 
@@ -416,6 +491,7 @@ function changeDepartment() {
     })
 }
 
+// ------- ADD --------
 
 function addDepartment() {
     inquirer.prompt([
@@ -463,6 +539,8 @@ async function populate(col, table) {
     return options;
 }
 
+// ------- POPULATE EMPLOYEES --------
+
 async function populateEmployee(crud) {
     var employees = [];
 
@@ -480,6 +558,8 @@ async function populateEmployee(crud) {
 
 }
 
+// ------- POPULATE ROLES --------
+
 async function populateRole(crud) {
     var roles = [];
 
@@ -492,12 +572,10 @@ async function populateRole(crud) {
     for (var i = 0; i < res.length; i++) {
         roles.push(res[i].title);
     }
-    // console.log(roles);
-    // get employee_id
-    // getEmployeeId()
     crud(roles);
-
 }
+
+// ------- POPULATE MANAGERS --------
 
 async function populateManagers() {
     options = []
@@ -512,7 +590,7 @@ async function populateManagers() {
         options.push(res[i].first_name + " " + res[i].last_name);
     }
     options.push("Null");
-    // update and delete
+    
     return options
 }
 
@@ -548,11 +626,9 @@ async function getRoleID(roleName) {
 
 async function getDepartmentID(departmentName) {
     var queryDepartment = `SELECT department_id FROM departments WHERE name = "${departmentName}"`;
-    // console.log(queryDepartment);
     var res = await connection.query(queryDepartment)
         .catch(function (err) {
             throw err;
         });
-    // console.log(res);
     return res[0].department_id;
 }
