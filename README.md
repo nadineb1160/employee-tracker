@@ -38,7 +38,7 @@ node index.js
 
 Then answer the given prompts:
 
-![CL Demo](/demo/CL_demo.gif)
+![CL Demo](Assets/Images/demo.gif)
 
 ## Author
 
