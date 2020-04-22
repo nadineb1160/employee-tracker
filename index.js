@@ -1,5 +1,6 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
+const Table = require("cli-table");
 const cTable = require("console.table");
 const util = require("util");
 
@@ -29,7 +30,7 @@ function start() {
             type: "list",
             name: "options",
             message: "What would you like to review?",
-            choices: ["Employees", "Roles", "Departments"]
+            choices: ["Employees", "Roles", "Departments", "Exit"]
         }
 
     ]).then(function (answers) {
@@ -43,6 +44,9 @@ function start() {
             case "Departments":
                 changeDepartment();
                 break;
+            case "Exit":
+            default:
+                connection.end();
         }
     });
 }
@@ -53,19 +57,37 @@ function viewTable(type) {
     connection.query(`SELECT * FROM ${type}`, function (err, res) {
         if (err) throw err;
         const table = cTable.getTable(res)
-        console.log(table);
+        console.table(table);
         start();
-    })
+    });
 }
 
 // ------- VIEW JOINED TABLE --------
 
+// function viewJoinedChart() {
+//     let queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, concat(m.first_name, ' ', m.last_name) AS ManagerName, d.name AS departmentName FROM (((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN employees m ON e.manager_id = m.employee_id) LEFT JOIN departments d ON r.department_id = d.department_id)";
+//     connection.query(queryChart, function (err, res) {
+//         if (err) throw err;
+//         const table = cTable.getTable(res);
+//         console.log(table);
+//         start();
+//     })
+// }
 function viewJoinedChart() {
-    let queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, m.first_name AS ManagerName FROM ((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN employees m ON e.manager_id = m.employee_id)";
+    var queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, concat(m.first_name, ' ', m.last_name) AS ManagerName, d.name AS departmentName FROM (((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN employees m ON e.manager_id = m.employee_id) LEFT JOIN departments d ON r.department_id = d.department_id)";
     connection.query(queryChart, function (err, res) {
         if (err) throw err;
-        const table = cTable.getTable(res)
-        console.log(table);
+        var table = new Table({head: ["Employee Id", "First Name", "Last Name", "Title", "Manager Name", "Department Name"],
+        colWidths: [15, 15, 15, 20, 20, 20]});
+        res.forEach((row) => {
+            
+            if(row.ManagerName === null) {
+                row.ManagerName = "N/A";
+            }
+            table.push([row.employee_id, row.first_name, row.last_name, row.title, row.ManagerName, row.departmentName]);
+        });
+        
+        console.log(table.toString());
         start();
     })
 }
@@ -95,12 +117,12 @@ function changeEmployee() {
                 addEmployee();
                 break;
             case "Remove Employee":
-                // populateEmployee(remove);
+                populateEmployee(remove);
                 break;
             case "Update Employee Role":
-            // populateEmployee(updateRole);
+                populateEmployee(updateEmployeeRole);
             case "Update Employee Manager":
-            // populateEmployee(updateManger);
+                populateEmployee(updateEmployeeManager);
 
         }
     })
@@ -135,7 +157,7 @@ async function addEmployee() {
     ]).then(async function (answers) {
 
         var roleID = await getRoleID(answers.role);
-        var managerID = await getManagerID(answers.manager);
+        var managerID = await getEmployeeID(answers.manager);
         // console.log("roleID", roleID);
         // console.log("managerID", managerID);
 
@@ -143,7 +165,7 @@ async function addEmployee() {
         connection.query(query, {
             first_name: answers.firstName,
             last_name: answers.lastName,
-            role_id: roleID, 
+            role_id: roleID,
             manager_id: managerID
         }, function (err) {
             if (err) throw err;
@@ -153,68 +175,81 @@ async function addEmployee() {
     })
 }
 
-async function getRoleID(role) {
-    var queryRole = `SELECT role_id FROM roles WHERE title = "${role}"`;
-    var res = await connection.query(queryRole)
-        .catch(function (err) {
-            throw err;
-        });
-
-    return res[0].role_id;
-}
-
-async function getManagerID(name) {
-    if (name === "Null") {
-        return null;
-    }
-    let nameSplit = name.split(" ");
-    let queryManager = `SELECT employee_id FROM employees WHERE first_name = '${nameSplit[0]}' AND last_name = '${nameSplit[1]}'`;
-    var res = await connection.query(queryManager)
-        .catch(function (err) {
-            throw err;
-        });
-    
-    return res[0].employee_id;
-}
-
-async function populateEmployee(crud) {
-    var employees = [];
-
-    var queryString = "SELECT first_name, last_name FROM employees"
-    var res = await connection.query(queryString)
-        .catch(function (err) {
-            if (err) throw err;
-        })
-    console.log(res);
-    for (var i = 0; i < res.length; i++) {
-        employees.push(res[i].first_name + " " + res[i].last_name);
-    }
-    console.log(employees);
-    // get employee_id
-    // getEmployeeId()
-    crud(employee_id);
-
-}
-
-
-function remove(list) {
+async function remove(list) {
     inquirer.prompt([{
         name: "delete",
         type: "list",
         choices: list,
         message: "Who would you like to remove from the team?"
-    }]).then(function (answer) {
-        var queryString = "DELETE FROM employee WHERE ?"
-        connection.query(queryString, {
-            employee_id: answer.delete //display names, convert to id
-
-        }, function (err) {
-            if (err) throw err;
+    }]).then(async function (answer) {
+        var employeeID = await getemployeeID(answer.delete);
+        var queryString = "DELETE FROM employees WHERE ?"
+        var res = await connection.query(queryString, {
+            employee_id: employeeID
         })
+            .catch(function (err) {
+                if (err) throw err;
+            });
         //Let's have a gander at our updated table (pulling straight from our database!!!!)
         // viewJoinedChart();
-        viewTable();
+        viewTable("employees");
     })
+}
+
+// updateType: manager or role
+async function updateEmployeeRole(list) {
+    let roleChoices = await populate("title", "roles");
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "employee",
+            choices: list,
+            message: "Who would you like to update from the team?"
+        },
+        {
+            type: "list",
+            name: "role",
+            message: "Update role:",
+            choices: roleChoices //add new choice?
+        }
+    ]).then(async function (answers) {
+        var roleID = await getRoleID(answers.role);
+        var employeeID = await getemployeeID(answers.employee);
+        var queryString = "UPDATE employees SET role_id = ? WHERE employee_id = ?"
+        await connection.query(queryString, [roleID, employeeID])
+            .catch(function (err) {
+                if (err) throw err;
+            });
+        viewTable("employees");
+    });
+}
+
+
+async function updateEmployeeManager(list) {
+    let managerChoices = await populateManagers();
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "employee",
+            choices: list,
+            message: "Who would you like to update from the team?"
+        },
+        {
+            type: "list",
+            name: "manager",
+            message: "Update manager:",
+            choices: managerChoices 
+        }
+    ]).then(async function (answers) {
+        var managerID = await getEmployeeID(answers.manager);
+        var employeeID = await getEmployeeID(answers.employee);
+        var queryString = "UPDATE employees SET manager_id = ? WHERE employee_id = ?"
+        await connection.query(queryString, [managerID, employeeID])
+            .catch(function (err) {
+                if (err) throw err;
+            });
+        viewTable("employees");
+    });
 }
 
 
@@ -240,12 +275,15 @@ function changeRole() {
                 addRole();
                 break;
             case "Remove Roles":
+                // removeRole();
+                populateRole(removeRole);
                 break;
             case "Update Roles":
+                populateRole(updateRole);
                 break;
 
         }
-    })
+    });
 }
 
 async function addRole() {
@@ -266,7 +304,7 @@ async function addRole() {
             choices: departmentChoices
         }
     ]).then(async function (answers) {
-        let depID = await getDepartmentID(answers);
+        let depID = await getDepartmentID(answers.department);
 
         console.log(depID)
         var query = "INSERT INTO roles SET ?";
@@ -279,19 +317,58 @@ async function addRole() {
         });
         // console.log(res);
         viewTable("roles");
-    })
+    });
 }
 
-async function getDepartmentID(answers) {
-    var queryDepartment = `SELECT department_id FROM departments WHERE name = "${answers.department}"`;
-    console.log(queryDepartment);
-    var res = await connection.query(queryDepartment)
-        .catch(function (err) {
-            throw err;
+async function removeRole(roleChoices) {
+    inquirer.prompt([{
+        name: "delete",
+        type: "list",
+        choices: roleChoices,
+        message: "Which role would you like to remove?"
+    }]).then(async function (answer) {
+        var roleID = await getRoleID(answer.delete);
+        var queryString = "DELETE FROM roles WHERE role_id = ?"
+        connection.query(queryString, roleID, function (err) {
+            if (err) throw err;
+            viewTable("roles");
         });
-    console.log(res);
-    return res[0].department_id;
+    });
+
 }
+
+
+async function updateRole(roleChoices) {
+    let departmentChoices = await populate("name", "departments");
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "role",
+            choices: roleChoices,
+            message: "Which role would you like to update?"
+        },
+        {
+            name: "salary",
+            message: "Update salary:"
+        },
+        {
+            type: "list",
+            name: "department",
+            message: "Update department:",
+            choices: departmentChoices
+        }
+    ]).then(async function (answers) {
+        var roleID = await getRoleID(answers.role);
+        var departmentID = await getDepartmentID(answers.department);
+        var queryString = "UPDATE roles SET salary = ?, department_id = ? WHERE role_id = ?"
+        await connection.query(queryString, [answers.salary, departmentID, roleID])
+            .catch(function (err) {
+                if (err) throw err;
+            });
+        viewTable("roles");
+    });
+}
+
 
 // ************************
 // ****** DEPARTMENT ******
@@ -323,6 +400,7 @@ function changeDepartment() {
     })
 }
 
+
 function addDepartment() {
     inquirer.prompt([
         {
@@ -343,8 +421,13 @@ function addDepartment() {
     })
 }
 
+
+// ************************
+// ******* POPULATE *******
+// ************************
+
 async function populate(col, table) {
-    options = [];
+    var options = [];
 
     var query = `SELECT ${col} FROM ${table}`;
     var res = await connection.query(query)
@@ -360,7 +443,46 @@ async function populate(col, table) {
             options.push(res[i].title);
         }
     }
+
     return options;
+}
+
+async function populateEmployee(crud) {
+    var employees = [];
+
+    var queryString = "SELECT first_name, last_name FROM employees"
+    var res = await connection.query(queryString)
+        .catch(function (err) {
+            if (err) throw err;
+        })
+    console.log(res);
+    for (var i = 0; i < res.length; i++) {
+        employees.push(res[i].first_name + " " + res[i].last_name);
+    }
+    console.log(employees);
+    // get employee_id
+    // getEmployeeId()
+    crud(employees);
+
+}
+
+async function populateRole(crud) {
+    var roles = [];
+
+    var queryString = "SELECT title FROM roles"
+    var res = await connection.query(queryString)
+        .catch(function (err) {
+            if (err) throw err;
+        })
+    console.log(res);
+    for (var i = 0; i < res.length; i++) {
+        roles.push(res[i].title);
+    }
+    console.log(roles);
+    // get employee_id
+    // getEmployeeId()
+    crud(roles);
+
 }
 
 async function populateManagers() {
@@ -381,4 +503,45 @@ async function populateManagers() {
     console.log(options);
     // update and delete
     return options
+}
+
+
+// ************************
+// ******* GET IDS ********
+// ************************
+
+async function getEmployeeID(fullName) {
+    // For managerID
+    if (fullName === "Null") {
+        return null;
+    }
+    let nameSplit = fullName.split(" ");
+    let queryEmployee = `SELECT employee_id FROM employees WHERE first_name = '${nameSplit[0]}' AND last_name = '${nameSplit[1]}'`;
+    var res = await connection.query(queryEmployee)
+        .catch(function (err) {
+            throw err;
+        });
+
+    return res[0].employee_id;
+}
+
+async function getRoleID(roleName) {
+    var queryRole = `SELECT role_id FROM roles WHERE title = "${roleName}"`;
+    var res = await connection.query(queryRole)
+        .catch(function (err) {
+            throw err;
+        });
+
+    return res[0].role_id;
+}
+
+async function getDepartmentID(departmentName) {
+    var queryDepartment = `SELECT department_id FROM departments WHERE name = "${departmentName}"`;
+    console.log(queryDepartment);
+    var res = await connection.query(queryDepartment)
+        .catch(function (err) {
+            throw err;
+        });
+    console.log(res);
+    return res[0].department_id;
 }
