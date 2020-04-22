@@ -25,9 +25,11 @@ connection.query = util.promisify(connection.query);
 // ************************
 
 function start() {
+
     console.log("\n=============================")
     console.log("------ EMPLOYEE TRACKER -----");
     console.log("=============================\n")
+
     inquirer.prompt([
         {
             type: "list",
@@ -35,7 +37,6 @@ function start() {
             message: "What would you like to review?",
             choices: ["View All", "Employees", "Roles", "Departments", "Exit"]
         }
-
     ]).then(function (answers) {
         switch (answers.options) {
             case "View All":
@@ -57,9 +58,8 @@ function start() {
     });
 }
 
-// ---------- VIEW TABLE ------------
-
 function viewTable(type) {
+
     console.log(`\n ***** ${type.toUpperCase()} TABLE ***** \n`);
 
     connection.query(`SELECT * FROM ${type}`, function (err, res) {
@@ -70,11 +70,12 @@ function viewTable(type) {
     });
 }
 
-// ------- VIEW JOINED TABLE --------
 
 function viewJoinedChart() {
+
     var queryChart = "SELECT e.employee_id, e.first_name, e.last_name, r.title, d.name AS departmentName, concat(m.first_name, ' ', m.last_name) AS ManagerName "
     queryChart += "FROM (((employees e LEFT JOIN roles r ON e.role_id = r.role_id) LEFT JOIN departments d ON r.department_id = d.department_id) LEFT JOIN employees m ON e.manager_id = m.employee_id)";
+
     connection.query(queryChart, function (err, res) {
         if (err) throw err;
         var table = new Table({
@@ -99,9 +100,11 @@ function viewJoinedChart() {
 // ************************
 
 function changeEmployee() {
+
     console.log("\n=============================")
     console.log("------ CHANGE EMPLOYEE ------");
     console.log("=============================\n")
+
     inquirer.prompt([
         {
             type: "list",
@@ -109,7 +112,6 @@ function changeEmployee() {
             message: "What would you like to do?",
             choices: ["View All Employees", "View All Employees By Role", "View All Employees By Manager", "Add Employee", "Remove Employee", "Update Employee Role", "Update Employee Manager", "Display Options"]
         }
-
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Employees":
@@ -141,7 +143,6 @@ function changeEmployee() {
     });
 }
 
-// ------- ADD  --------
 
 async function addEmployee() {
     let roleChoices = await populate("title", "roles");
@@ -167,13 +168,9 @@ async function addEmployee() {
             message: "Who is the employee's manager?",
             choices: managerChoices
         }
-
     ]).then(async function (answers) {
-
         var roleID = await getRoleID(answers.role);
         var managerID = await getEmployeeID(answers.manager);
-        // console.log("roleID", roleID);
-        // console.log("managerID", managerID);
 
         var query = "INSERT INTO employees SET ?";
         connection.query(query, {
@@ -189,30 +186,30 @@ async function addEmployee() {
     })
 }
 
-// ------- REMOVE  --------
 
 async function remove(list) {
-    inquirer.prompt([{
-        name: "delete",
-        type: "list",
-        choices: list,
-        message: "Who would you like to remove from the team?"
-    }]).then(async function (answer) {
+    inquirer.prompt([
+        {
+            name: "delete",
+            type: "list",
+            choices: list,
+            message: "Who would you like to remove from the team?"
+        }
+    ]).then(async function (answer) {
         var employeeID = await getEmployeeID(answer.delete);
+
         var queryString = "DELETE FROM employees WHERE ?"
-        var res = await connection.query(queryString, {
+        await connection.query(queryString, {
             employee_id: employeeID
         })
             .catch(function (err) {
                 if (err) throw err;
             });
-        //Let's have a gander at our updated table (pulling straight from our database!!!!)
-        // viewJoinedChart();
+        
         viewTable("employees");
     })
 }
 
-// ------- UPDATE  ROLE --------
 
 async function updateEmployeeRole(list) {
     let roleChoices = await populate("title", "roles");
@@ -232,6 +229,7 @@ async function updateEmployeeRole(list) {
     ]).then(async function (answers) {
         var roleID = await getRoleID(answers.role);
         var employeeID = await getEmployeeID(answers.employee);
+
         var queryString = "UPDATE employees SET role_id = ? WHERE employee_id = ?"
         await connection.query(queryString, [roleID, employeeID])
             .catch(function (err) {
@@ -241,7 +239,6 @@ async function updateEmployeeRole(list) {
     });
 }
 
-// ------- UPDATE MANAGER  --------
 
 async function updateEmployeeManager(list) {
     let managerChoices = await populateManagers();
@@ -261,6 +258,7 @@ async function updateEmployeeManager(list) {
     ]).then(async function (answers) {
         var managerID = await getEmployeeID(answers.manager);
         var employeeID = await getEmployeeID(answers.employee);
+
         var queryString = "UPDATE employees SET manager_id = ? WHERE employee_id = ?"
         await connection.query(queryString, [managerID, employeeID])
             .catch(function (err) {
@@ -270,28 +268,26 @@ async function updateEmployeeManager(list) {
     });
 }
 
-// ------- VIEW EMPLOYEES BY MANAGER --------
 
 async function viewEmployeesByManager() {
     let managerChoices = await populateManagers();
-    
+
     inquirer.prompt([
         {
             type: "list",
             name: "manager",
-            message: "Search Employees By Manager:",
+            message: "View Employees By Manager:",
             choices: managerChoices
         }
     ]).then(async function (answer) {
         let employeeID = await getEmployeeID(answer.manager);
-        console.log(employeeID);
-        var query = "SELECT first_name, last_name FROM employees LEFT JOIN WHERE employee_id = ?"
-        console.log(query);
+        
+        var query = "SELECT first_name, last_name FROM employees WHERE manager_id = ?"
         var res = await connection.query(query, [employeeID])
             .catch(function (err) {
                 if (err) throw err;
             });
-            
+        
         const table = cTable.getTable(res);
         console.table(table);
         start();
@@ -304,9 +300,11 @@ async function viewEmployeesByManager() {
 // ************************
 
 function changeRole() {
+
     console.log("\n=============================")
     console.log("-------- CHANGE ROLE --------");
     console.log("=============================\n")
+
     inquirer.prompt([
         {
             type: "list",
@@ -314,7 +312,6 @@ function changeRole() {
             message: "What would you like to do?",
             choices: ["View All Roles", "Add Roles", "Remove Roles", "Update Roles", "Display Options"]
         }
-
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Roles":
@@ -338,7 +335,6 @@ function changeRole() {
     });
 }
 
-// ------- ADD --------
 
 async function addRole() {
     let departmentChoices = await populate("name", "departments");
@@ -373,7 +369,6 @@ async function addRole() {
     });
 }
 
-// ------- REMOVE --------
 
 async function removeRole(roleChoices) {
     inquirer.prompt([{
@@ -383,6 +378,7 @@ async function removeRole(roleChoices) {
         message: "Which role would you like to remove?"
     }]).then(async function (answer) {
         var roleID = await getRoleID(answer.delete);
+
         var queryString = "DELETE FROM roles WHERE role_id = ?"
         connection.query(queryString, roleID, function (err) {
             if (err) throw err;
@@ -392,7 +388,6 @@ async function removeRole(roleChoices) {
 
 }
 
-// ------- UPDATE ROLE --------
 
 async function updateRole(roleChoices) {
     let departmentChoices = await populate("name", "departments");
@@ -416,6 +411,7 @@ async function updateRole(roleChoices) {
     ]).then(async function (answers) {
         var roleID = await getRoleID(answers.role);
         var departmentID = await getDepartmentID(answers.department);
+
         var queryString = "UPDATE roles SET salary = ?, department_id = ? WHERE role_id = ?"
         await connection.query(queryString, [answers.salary, departmentID, roleID])
             .catch(function (err) {
@@ -425,7 +421,6 @@ async function updateRole(roleChoices) {
     });
 }
 
-// ------- VIEW EMPLOYEES BY ROLE --------
 
 async function viewEmployeesByRole() {
 
@@ -434,19 +429,18 @@ async function viewEmployeesByRole() {
         {
             type: "list",
             name: "role",
-            message: "Search Employees By:",
+            message: "View Employees By Role:",
             choices: roleChoices
         }
     ]).then(async function (answer) {
         let roleID = await getRoleID(answer.role);
-        console.log(roleID);
+        
         var query = "SELECT first_name, last_name FROM employees WHERE role_id = ?"
-        console.log(query);
         var res = await connection.query(query, [roleID])
             .catch(function (err) {
                 if (err) throw err;
             });
-            
+        
         const table = cTable.getTable(res);
         console.table(table);
         start();
@@ -459,9 +453,11 @@ async function viewEmployeesByRole() {
 // ************************
 
 function changeDepartment() {
+
     console.log("\n=============================")
     console.log("----- CHANGE DEPARTMENT -----");
     console.log("=============================\n")
+
     inquirer.prompt([
         {
             type: "list",
@@ -469,7 +465,6 @@ function changeDepartment() {
             message: "What would you like to do?",
             choices: ["View All Departments", "Add Department", "Remove Department", "Update Department", "Display Options"]
         }
-
     ]).then(function (answer) {
         switch (answer.options) {
             case "View All Departments":
@@ -479,19 +474,19 @@ function changeDepartment() {
                 addDepartment();
                 break;
             case "Remove Department":
+                removeDepartment();
                 break;
             case "Update Department":
+                updateDepartment();
                 break;
             case "Display Options":
             default:
                 start();
                 break;
-
         }
     })
 }
 
-// ------- ADD --------
 
 function addDepartment() {
     inquirer.prompt([
@@ -500,8 +495,6 @@ function addDepartment() {
             message: "What is the department's name?"
         }
     ]).then(async function (answers) {
-
-
         var query = "INSERT INTO departments SET ?";
         await connection.query(query, {
             name: answers.name,
@@ -510,7 +503,51 @@ function addDepartment() {
         });
 
         viewTable("departments");
-    })
+    });
+}
+
+async function removeDepartment() {
+    let departmentChoices = await populate("name", "departments");
+    inquirer.prompt([{
+        name: "delete",
+        type: "list",
+        choices: departmentChoices,
+        message: "Which department would you like to remove?"
+    }]).then(async function (answer) {
+        var departmentID = await getDepartmentID(answer.delete);
+
+        var queryString = "DELETE FROM departments WHERE department_id = ?"
+        connection.query(queryString, departmentID, function (err) {
+            if (err) throw err;
+            viewTable("departments");
+        });
+    });
+}
+
+
+async function updateDepartment() {
+    let departmentChoices = await populate("name", "departments");
+    inquirer.prompt([
+        {
+            type: "list",
+            name: "department",
+            choices: departmentChoices,
+            message: "Which department would you like to update?"
+        },
+        {
+            name: "name",
+            message: "Update name of department:"
+        },
+    ]).then(async function (answers) {
+        var departmentID = await getDepartmentID(answers.department);
+
+        var queryString = "UPDATE departments SET name = ? WHERE department_id = ?"
+        await connection.query(queryString, [answers.name, departmentID])
+            .catch(function (err) {
+                if (err) throw err;
+            });
+        viewTable("departments");
+    });
 }
 
 
@@ -539,7 +576,6 @@ async function populate(col, table) {
     return options;
 }
 
-// ------- POPULATE EMPLOYEES --------
 
 async function populateEmployee(crud) {
     var employees = [];
@@ -558,7 +594,6 @@ async function populateEmployee(crud) {
 
 }
 
-// ------- POPULATE ROLES --------
 
 async function populateRole(crud) {
     var roles = [];
@@ -575,7 +610,6 @@ async function populateRole(crud) {
     crud(roles);
 }
 
-// ------- POPULATE MANAGERS --------
 
 async function populateManagers() {
     options = []
@@ -589,8 +623,8 @@ async function populateManagers() {
     for (let i = 0; i < res.length; i++) {
         options.push(res[i].first_name + " " + res[i].last_name);
     }
-    options.push("Null");
-    
+    options.push("Null"); // option if employee is manager
+
     return options
 }
 
