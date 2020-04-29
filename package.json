@@ -1,0 +1,26 @@
+{
+  "name": "employee-tracker",
+  "version": "1.0.0",
+  "description": "This application allows you to manage a company's employees by creating an employee database that stores information on employees, roles and departments in tables. The user is prompted on the command line to change, read, update or delete (CRUD) from these categories.",
+  "main": "index.js",
+  "dependencies": {
+    "cli-table": "^0.3.1",
+    "console.table": "^0.10.0",
+    "mysql": "^2.18.1",
+    "inquirer": "^7.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nadineb1160/employee-tracker.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nadineb1160/employee-tracker/issues"
+  },
+  "homepage": "https://github.com/nadineb1160/employee-tracker#readme"
+}
